@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Centro de Operaciones de Seguridad</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="bg-orb orb-one"></div>
+      <div class="bg-orb orb-two"></div>
+
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Prototipo etapa 1</p>
+          <h1>Monitoreo centralizado de seguridad física para condominios</h1>
+          <p class="hero-copy">
+            Este panel en <code>localhost:8000</code> es la consola operativa del demo. Desde aquí un equipo central
+            supervisa condominios, visitantes, cámaras, alertas y, en la vista maestra de cada sitio, dispara acciones
+            remotas simuladas.
+          </p>
+        </div>
+        <div class="hero-links">
+          <a href="/docs" target="_blank" rel="noreferrer">Documentación API</a>
+          <a href="http://localhost:9090" target="_blank" rel="noreferrer">ThingsBoard / telemetría</a>
+          <a href="http://localhost:9001" target="_blank" rel="noreferrer">MinIO / evidencias</a>
+          <div class="hero-status-card">
+            <p class="section-label">Arquitectura</p>
+            <p>
+              <strong>8000</strong>: operación diaria y aprobaciones.
+              <br />
+              <strong>9090</strong>: ThingsBoard como capa de telemetría y tablero operativo.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <section class="kpi-grid" id="kpi-grid"></section>
+
+      <section class="panel site-panel">
+        <div class="section-head">
+          <div>
+            <p class="section-label">Operación multisede</p>
+            <h2>Estado general de los condominios</h2>
+          </div>
+          <p class="section-meta" id="generated-at">Esperando la primera ráfaga de telemetría...</p>
+        </div>
+        <div class="site-grid" id="site-grid"></div>
+      </section>
+
+      <div class="feed-layout">
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-label">Alertas</p>
+              <h2>Incidentes operativos recientes</h2>
+            </div>
+          </div>
+          <div class="feed-list" id="alerts-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-label">Flujo de visitantes</p>
+              <h2>Solicitudes de acceso recientes</h2>
+            </div>
+          </div>
+          <div class="feed-list" id="visitors-list"></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="section-label">Visibilidad de cámaras</p>
+            <h2>Últimos snapshots de todos los sitios</h2>
+          </div>
+        </div>
+        <div class="camera-grid" id="camera-grid"></div>
+      </section>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

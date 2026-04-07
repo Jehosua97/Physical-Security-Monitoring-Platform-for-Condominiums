@@ -1,0 +1,178 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "${MQTT_PORT}:1883"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  thingsboard:
+    image: thingsboard/tb-postgres
+    ports:
+      - "${THINGSBOARD_PORT}:9090"
+      - "1884:1883"
+      - "7070:7070"
+    volumes:
+      - thingsboard_data:/data
+      - thingsboard_logs:/var/log/thingsboard
+
+  backend-api:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_SECURE: "false"
+      API_PUBLIC_URL: http://localhost:${BACKEND_PORT}
+      SITE_OFFLINE_SECONDS: ${SITE_OFFLINE_SECONDS}
+      CAMERA_OFFLINE_SECONDS: ${CAMERA_OFFLINE_SECONDS}
+      MONITORING_INTERVAL_SECONDS: ${MONITORING_INTERVAL_SECONDS}
+      THINGSBOARD_ENABLED: ${THINGSBOARD_ENABLED}
+      THINGSBOARD_URL: ${THINGSBOARD_URL}
+      THINGSBOARD_TENANT_USERNAME: ${THINGSBOARD_TENANT_USERNAME}
+      THINGSBOARD_TENANT_PASSWORD: ${THINGSBOARD_TENANT_PASSWORD}
+      THINGSBOARD_DASHBOARD_TITLE: ${THINGSBOARD_DASHBOARD_TITLE}
+      THINGSBOARD_SYNC_INTERVAL_SECONDS: ${THINGSBOARD_SYNC_INTERVAL_SECONDS}
+    depends_on:
+      - postgres
+      - minio
+      - thingsboard
+    ports:
+      - "${BACKEND_PORT}:8000"
+
+  edge-agent-condo-01:
+    build:
+      context: ./edge-agent
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-01
+      SITE_NAME: Torre Mirador Norte
+      SITE_ADDRESS: Av. Central 101, Distrito Norte
+      HEARTBEAT_INTERVAL_SECONDS: 8
+    depends_on:
+      - backend-api
+
+  edge-agent-condo-02:
+    build:
+      context: ./edge-agent
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-02
+      SITE_NAME: Residencial Laguna Azul
+      SITE_ADDRESS: Calle Costera 22, Zona Este
+      HEARTBEAT_INTERVAL_SECONDS: 8
+    depends_on:
+      - backend-api
+
+  edge-agent-condo-03:
+    build:
+      context: ./edge-agent
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-03
+      SITE_NAME: Parque Alto Condominios
+      SITE_ADDRESS: Blvd. Jardines 73, Sector Oeste
+      HEARTBEAT_INTERVAL_SECONDS: 8
+    depends_on:
+      - backend-api
+
+  camera-sim-condo-01:
+    build:
+      context: ./camera-sim
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-01
+      CAMERA_IDS: condo-01-cam-lobby,condo-01-cam-gate
+      CAMERA_NAMES: Camara lobby,Camara acceso principal
+      STREAM_BASE_URL: rtsp://demo-streams.local/condo-01
+      UPDATE_INTERVAL_SECONDS: 9
+    depends_on:
+      - backend-api
+
+  camera-sim-condo-02:
+    build:
+      context: ./camera-sim
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-02
+      CAMERA_IDS: condo-02-cam-lobby,condo-02-cam-pool
+      CAMERA_NAMES: Camara lobby,Camara acceso piscina
+      STREAM_BASE_URL: rtsp://demo-streams.local/condo-02
+      UPDATE_INTERVAL_SECONDS: 9
+    depends_on:
+      - backend-api
+
+  camera-sim-condo-03:
+    build:
+      context: ./camera-sim
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-03
+      CAMERA_IDS: condo-03-cam-garage,condo-03-cam-perimeter
+      CAMERA_NAMES: Camara garaje,Camara perimetral
+      STREAM_BASE_URL: rtsp://demo-streams.local/condo-03
+      UPDATE_INTERVAL_SECONDS: 9
+    depends_on:
+      - backend-api
+
+  visitor-sim-condo-01:
+    build:
+      context: ./visitor-sim
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-01
+      VISITOR_INTERVAL_SECONDS: 18
+    depends_on:
+      - backend-api
+
+  visitor-sim-condo-02:
+    build:
+      context: ./visitor-sim
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-02
+      VISITOR_INTERVAL_SECONDS: 16
+    depends_on:
+      - backend-api
+
+  visitor-sim-condo-03:
+    build:
+      context: ./visitor-sim
+    environment:
+      BACKEND_URL: http://backend-api:8000
+      SITE_ID: condo-03
+      VISITOR_INTERVAL_SECONDS: 20
+    depends_on:
+      - backend-api
+
+volumes:
+  postgres_data:
+  minio_data:
+  thingsboard_data:
+  thingsboard_logs:

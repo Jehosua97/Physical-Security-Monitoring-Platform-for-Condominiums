@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ site_name }} | Vista maestra</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="bg-orb orb-one"></div>
+      <div class="bg-orb orb-two"></div>
+
+      <header class="hero hero-master">
+        <div>
+          <a class="nav-link" href="/">Volver al tablero central</a>
+          <p class="eyebrow">Vista maestra del condominio</p>
+          <h1 id="master-title">{{ site_name }}</h1>
+          <p class="hero-copy" id="master-copy">
+            Muro de cámaras, contexto operativo y aprobaciones remotas para un solo condominio.
+          </p>
+        </div>
+        <div class="hero-links">
+          <a href="http://localhost:9090" target="_blank" rel="noreferrer">Abrir ThingsBoard</a>
+          <a href="/docs" target="_blank" rel="noreferrer">Revisar API</a>
+          <div class="hero-status-card">
+            <p class="section-label">Estado de refresco</p>
+            <p id="master-generated-at">Esperando telemetría...</p>
+          </div>
+        </div>
+      </header>
+
+      <section class="kpi-grid kpi-grid-master" id="master-kpi-grid"></section>
+
+      <div class="master-layout">
+        <section class="panel master-main">
+          <div class="section-head">
+            <div>
+              <p class="section-label">Muro de cámaras</p>
+              <h2>Vista maestra de cámaras</h2>
+            </div>
+          </div>
+          <div class="snapshot-note" id="live-mode-note"></div>
+          <div class="camera-wall" id="master-camera-wall"></div>
+        </section>
+
+        <div class="master-stack">
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="section-label">Operación remota</p>
+                <h2>Controles del sitio</h2>
+              </div>
+            </div>
+            <p class="operator-copy">
+              Desde esta vista el operador central puede aprobar accesos y enviar comandos al edge-agent del condominio.
+              En esta etapa, el sistema simula acciones como abrir la puerta principal o activar la luz del lobby.
+            </p>
+            <div class="action-button-grid">
+              <button class="action-button" id="open-door-button" type="button">Abrir puerta principal</button>
+              <button class="action-button action-button-secondary" id="toggle-light-button" type="button">
+                Activar luz del lobby
+              </button>
+            </div>
+            <div class="operator-status" id="operator-status">
+              Los comandos se encolan en el backend y el edge-agent del condominio los ejecuta de forma remota.
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="section-label">Aprobaciones</p>
+                <h2>Visitantes pendientes</h2>
+              </div>
+            </div>
+            <div class="feed-list" id="pending-visitors-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="section-label">Alertas</p>
+                <h2>Incidentes recientes del sitio</h2>
+              </div>
+            </div>
+            <div class="feed-list" id="master-alerts-list"></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="feed-layout master-secondary">
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-label">Visitantes</p>
+              <h2>Actividad reciente</h2>
+            </div>
+          </div>
+          <div class="feed-list" id="master-visitors-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <p class="section-label">Acciones remotas</p>
+              <h2>Historial de ejecución</h2>
+            </div>
+          </div>
+          <div class="feed-list" id="master-actions-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      window.SITE_MASTER_CONFIG = {
+        siteId: "{{ site_id }}",
+      };
+    </script>
+    <script src="/static/site-master.js" defer></script>
+  </body>
+</html>
