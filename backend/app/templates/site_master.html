@@ -17,15 +17,18 @@
           <p class="eyebrow">Vista maestra del condominio</p>
           <h1 id="master-title">{{ site_name }}</h1>
           <p class="hero-copy" id="master-copy">
-            Muro de cámaras, contexto operativo y aprobaciones remotas para un solo condominio.
+            Muro de camaras, contexto operativo y aprobaciones remotas para un solo condominio.
           </p>
         </div>
         <div class="hero-links">
+          <button class="action-button theme-toggle" type="button" data-theme-toggle>
+            Cambiar a oscuro
+          </button>
           <a href="http://localhost:9090" target="_blank" rel="noreferrer">Abrir ThingsBoard</a>
           <a href="/docs" target="_blank" rel="noreferrer">Revisar API</a>
           <div class="hero-status-card">
             <p class="section-label">Estado de refresco</p>
-            <p id="master-generated-at">Esperando telemetría...</p>
+            <p id="master-generated-at">Esperando telemetria...</p>
           </div>
         </div>
       </header>
@@ -36,9 +39,10 @@
         <section class="panel master-main">
           <div class="section-head">
             <div>
-              <p class="section-label">Muro de cámaras</p>
-              <h2>Vista maestra de cámaras</h2>
+              <p class="section-label">Muro de camaras</p>
+              <h2>Vista maestra del condominio</h2>
             </div>
+            <p class="section-meta">Selecciona una camara para ampliarla y entrar a playback.</p>
           </div>
           <div class="snapshot-note" id="live-mode-note"></div>
           <div class="camera-wall" id="master-camera-wall"></div>
@@ -48,7 +52,7 @@
           <section class="panel">
             <div class="section-head">
               <div>
-                <p class="section-label">Operación remota</p>
+                <p class="section-label">Operacion remota</p>
                 <h2>Controles del sitio</h2>
               </div>
             </div>
@@ -104,7 +108,7 @@
           <div class="section-head">
             <div>
               <p class="section-label">Acciones remotas</p>
-              <h2>Historial de ejecución</h2>
+              <h2>Historial de ejecucion</h2>
             </div>
           </div>
           <div class="feed-list" id="master-actions-list"></div>
@@ -117,6 +121,8 @@
         siteId: "{{ site_id }}",
       };
     </script>
+    <script src="/static/theme-toggle.js" defer></script>
+    <script src="/static/camera-modal.js" defer></script>
     <script src="/static/site-master.js" defer></script>
   </body>
 </html>

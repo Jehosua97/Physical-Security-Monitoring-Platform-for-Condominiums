@@ -9,7 +9,7 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://backend-api:8000")
 SITE_ID = os.getenv("SITE_ID", "condo-01")
 CAMERA_IDS = [item.strip() for item in os.getenv("CAMERA_IDS", "cam-01,cam-02").split(",")]
 CAMERA_NAMES = [item.strip() for item in os.getenv("CAMERA_NAMES", "Camara lobby,Camara acceso").split(",")]
-STREAM_BASE_URL = os.getenv("STREAM_BASE_URL", "rtsp://demo-streams.local/default")
+STREAM_BASE_URL = os.getenv("STREAM_BASE_URL", "rtsp://mediamtx:8554/default")
 UPDATE_INTERVAL = int(os.getenv("UPDATE_INTERVAL_SECONDS", "9"))
 
 session = requests.Session()
@@ -47,6 +47,12 @@ def main() -> None:
         for index, camera_id in enumerate(CAMERA_IDS):
             name = camera_name(index)
             status = camera_status(index, cycle)
+            # En el demo, stream_url apunta a la ruta RTSP de ingreso en MediaMTX dentro de Docker.
+            # Cuando conectes una camara real, este camera_id puede mantenerse igual; el cambio real
+            # ocurre en el edge:
+            # 1. reemplaza el publisher simulado por un source RTSP/ONVIF real en infra/mediamtx/<site>.yml
+            # 2. o sustituye este servicio por un collector que descubra camaras fisicas y reporte
+            #    heartbeat, snapshots y metadata desde la LAN del condominio.
             payload = {
                 "site_id": SITE_ID,
                 "camera_id": camera_id,

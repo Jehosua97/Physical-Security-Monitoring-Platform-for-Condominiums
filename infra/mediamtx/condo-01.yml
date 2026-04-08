@@ -1,0 +1,57 @@
+logLevel: info
+
+api: yes
+apiAddress: :9997
+apiAllowOrigins:
+  - "*"
+
+playback: yes
+playbackAddress: :9996
+playbackAllowOrigins:
+  - "*"
+
+rtsp: yes
+rtspAddress: :8554
+rtspTransports:
+  - tcp
+
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigins:
+  - "*"
+hlsAlwaysRemux: yes
+hlsVariant: lowLatency
+hlsSegmentCount: 8
+hlsSegmentDuration: 1s
+hlsPartDuration: 300ms
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcAllowOrigins:
+  - "*"
+webrtcIPsFromInterfaces: no
+webrtcAdditionalHosts:
+  - localhost
+webrtcLocalUDPAddress: :8189
+
+pathDefaults:
+  source: publisher
+  overridePublisher: yes
+  record: yes
+  recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordPartDuration: 1s
+  recordSegmentDuration: 20s
+  recordDeleteAfter: 6h
+
+paths:
+  condo-01/condo-01-cam-lobby:
+    source: publisher
+    # Camara real futura:
+    # source: rtsp://admin:CAMBIAR_PASSWORD@192.168.10.21:554/Streaming/Channels/101
+    # sourceOnDemand: yes
+  condo-01/condo-01-cam-gate:
+    source: publisher
+    # Camara real futura:
+    # source: rtsp://admin:CAMBIAR_PASSWORD@192.168.10.22:554/Streaming/Channels/101
+    # sourceOnDemand: yes

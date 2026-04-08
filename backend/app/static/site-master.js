@@ -2,11 +2,12 @@ const masterState = {
   siteId: window.SITE_MASTER_CONFIG.siteId,
   socket: null,
   requestInFlight: false,
+  camerasById: new Map(),
 };
 
 const STATUS_LABELS = {
-  online: "En línea",
-  offline: "Fuera de línea",
+  online: "En linea",
+  offline: "Fuera de linea",
   approved: "Aprobado",
   pending: "Pendiente",
   denied: "Denegado",
@@ -16,25 +17,24 @@ const STATUS_LABELS = {
   low: "Baja",
   medium: "Media",
   high: "Alta",
-  critical: "Crítica",
-  in_progress: "En ejecución",
+  critical: "Critica",
+  in_progress: "En ejecucion",
   completed: "Completada",
   failed: "Fallida",
 };
 
 function formatTime(value) {
   if (!value) {
-    return "Sin datos aún";
+    return "Sin datos aun";
   }
 
-  const date = new Date(value);
   return new Intl.DateTimeFormat("es-CO", {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     hour12: false,
-  }).format(date);
+  }).format(new Date(value));
 }
 
 function translateStatus(value) {
@@ -52,8 +52,16 @@ function setOperatorStatus(message, tone = "neutral") {
 }
 
 function setActionButtonsDisabled(disabled) {
-  document.querySelectorAll(".action-button").forEach((button) => {
-    button.disabled = disabled;
+  const selectors = [
+    "#open-door-button",
+    "#toggle-light-button",
+    "#pending-visitors-list [data-visitor-decision]",
+  ];
+
+  selectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((button) => {
+      button.disabled = disabled;
+    });
   });
 }
 
@@ -68,7 +76,7 @@ async function postJson(url, payload) {
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(error || `Falló la operación ${response.status}`);
+    throw new Error(error || `Fallo la operacion ${response.status}`);
   }
 
   return response.json();
@@ -77,7 +85,7 @@ async function postJson(url, payload) {
 function renderMasterKpis(site, kpis) {
   const items = [
     ["Estado del sitio", translateStatus(site.status)],
-    ["Cámaras activas", `${kpis.active_cameras}/${kpis.total_cameras}`],
+    ["Camaras activas", `${kpis.active_cameras}/${kpis.total_cameras}`],
     ["Alertas abiertas", `${kpis.open_alerts}`],
     ["Visitantes recientes", `${kpis.recent_visitors}`],
     ["Acciones pendientes", `${kpis.acciones_pendientes}`],
@@ -95,22 +103,55 @@ function renderMasterKpis(site, kpis) {
     .join("");
 }
 
+function cameraControls(camera) {
+  return `
+    <div class="camera-card-actions">
+      <button class="action-button" type="button" data-camera-open="${camera.camera_id}" data-camera-mode="webrtc">
+        Ampliar en vivo
+      </button>
+      <button class="action-button action-button-secondary" type="button" data-camera-open="${camera.camera_id}" data-camera-mode="hls">
+        Abrir LL-HLS
+      </button>
+      <button class="action-button action-button-secondary" type="button" data-camera-open="${camera.camera_id}" data-camera-mode="playback">
+        Playback
+      </button>
+    </div>
+  `;
+}
+
+function cameraPreviewOverlay(camera, label = "Expandir camara") {
+  return `
+    <button
+      class="camera-preview-hitbox"
+      type="button"
+      data-camera-open="${camera.camera_id}"
+      data-camera-mode="webrtc"
+      aria-label="Expandir ${camera.name}"
+      title="Expandir ${camera.name}"
+    >
+      <span class="camera-preview-chip">WebRTC</span>
+      <span class="camera-preview-chip camera-preview-chip-strong">${label}</span>
+    </button>
+  `;
+}
+
 function renderMasterCameras(cameras) {
   const container = document.getElementById("master-camera-wall");
+  masterState.camerasById = new Map(cameras.map((camera) => [camera.camera_id, camera]));
+
   if (!cameras.length) {
-    container.innerHTML = '<div class="empty-state">Aún no reportan cámaras para este condominio.</div>';
+    container.innerHTML = '<div class="empty-state">Aun no reportan camaras para este condominio.</div>';
     return;
   }
 
   container.innerHTML = cameras
     .map(
       (camera) => `
-        <article class="camera-frame">
-          ${
-            camera.snapshot_url
-              ? `<img class="camera-frame-image" src="${camera.snapshot_url}" alt="Snapshot de ${camera.name}" />`
-              : '<div class="camera-frame-image camera-frame-placeholder"></div>'
-          }
+        <article class="camera-frame camera-frame-live">
+          <div class="camera-frame-media">
+            ${window.CameraExperience.buildCameraViewport(camera)}
+            ${cameraPreviewOverlay(camera)}
+          </div>
           <div class="camera-frame-body">
             <div class="site-topline">
               <div>
@@ -119,10 +160,15 @@ function renderMasterCameras(cameras) {
               </div>
               <span class="${statusClass(camera.status)}">${translateStatus(camera.status)}</span>
             </div>
-            <p class="feed-meta">Última actualización ${formatTime(camera.last_seen)}</p>
+            <div class="feed-badge-row">
+              <span class="metric-chip">WebRTC vivo</span>
+              <span class="metric-chip">LL-HLS reproducible</span>
+              <span class="metric-chip">Ultima senal ${formatTime(camera.last_seen)}</span>
+            </div>
+            ${cameraControls(camera)}
             <div class="camera-stream-box">
-              <p class="camera-stream-label">Endpoint futuro de streaming</p>
-              <p class="camera-stream-value">${camera.stream_url || "No configurado"}</p>
+              <p class="camera-stream-label">Ruta RTSP del edge</p>
+              <p class="camera-stream-value">${camera.media?.ingest_rtsp_url || "No configurada"}</p>
             </div>
           </div>
         </article>
@@ -160,7 +206,7 @@ function renderAlerts(alerts) {
 function renderRecentVisitors(visitors) {
   const container = document.getElementById("master-visitors-list");
   if (!visitors.length) {
-    container.innerHTML = '<div class="empty-state">Todavía no hay actividad de visitantes para este sitio.</div>';
+    container.innerHTML = '<div class="empty-state">Todavia no hay actividad de visitantes para este sitio.</div>';
     return;
   }
 
@@ -184,11 +230,7 @@ function renderRecentVisitors(visitors) {
                 <span class="metric-chip">${visitor.id_type}</span>
                 <span class="metric-chip">${formatTime(visitor.timestamp)}</span>
               </div>
-              ${
-                visitor.notes
-                  ? `<p class="feed-note">${visitor.notes}</p>`
-                  : ""
-              }
+              ${visitor.notes ? `<p class="feed-note">${visitor.notes}</p>` : ""}
             </div>
           </div>
         </article>
@@ -201,7 +243,7 @@ function renderPendingVisitors(visitors) {
   const container = document.getElementById("pending-visitors-list");
   if (!visitors.length) {
     container.innerHTML =
-      '<div class="empty-state">No hay solicitudes pendientes. Las nuevas revisiones aparecerán aquí.</div>';
+      '<div class="empty-state">No hay solicitudes pendientes. Las nuevas revisiones apareceran aqui.</div>';
     return;
   }
 
@@ -265,7 +307,7 @@ function renderPendingVisitors(visitors) {
 function renderRecentActions(actions) {
   const container = document.getElementById("master-actions-list");
   if (!actions.length) {
-    container.innerHTML = '<div class="empty-state">Todavía no se han ejecutado acciones remotas en este sitio.</div>';
+    container.innerHTML = '<div class="empty-state">Todavia no se han ejecutado acciones remotas en este sitio.</div>';
     return;
   }
 
@@ -282,7 +324,7 @@ function renderRecentActions(actions) {
             <span class="metric-chip">${action.action_type}</span>
             <span class="metric-chip">${formatTime(action.completed_at || action.started_at || action.created_at)}</span>
           </div>
-          <p class="feed-note">${action.result_message || "Esperando ejecución por el edge-agent del condominio."}</p>
+          <p class="feed-note">${action.result_message || "Esperando ejecucion por el edge-agent del condominio."}</p>
         </article>
       `
     )
@@ -299,7 +341,7 @@ async function loadMasterView() {
   document.getElementById("master-title").textContent = data.site.name;
   document.getElementById(
     "master-copy"
-  ).textContent = `${data.site.address}. Desde esta pantalla el operador central ve snapshots, decide aprobaciones y envía acciones remotas al condominio.`;
+  ).textContent = `${data.site.address}. Desde esta pantalla el operador central monitorea video WebRTC, reproduce LL-HLS y atiende playback historico, aprobaciones y acciones remotas.`;
   document.getElementById("master-generated-at").textContent = `Actualizado ${formatTime(data.generated_at)}`;
   document.getElementById("live-mode-note").innerHTML = `
     <strong>${data.live_mode.title}.</strong>
@@ -332,7 +374,7 @@ async function triggerManualAction(commandConfig) {
       payload: commandConfig.payload,
     });
     setOperatorStatus(
-      `Comando enviado. Acción ${action.action_id} en estado ${translateStatus(action.status)}.`,
+      `Comando enviado. Accion ${action.action_id} en estado ${translateStatus(action.status)}.`,
       "success"
     );
     await loadMasterView();
@@ -357,7 +399,7 @@ async function handleVisitorDecision(button) {
 
   masterState.requestInFlight = true;
   setActionButtonsDisabled(true);
-  setOperatorStatus(`Procesando decisión para ${visitorName}...`, "neutral");
+  setOperatorStatus(`Procesando decision para ${visitorName}...`, "neutral");
 
   try {
     const result = await postJson(`/visitors/events/${eventId}/decision`, {
@@ -367,17 +409,15 @@ async function handleVisitorDecision(button) {
     });
 
     const baseMessage =
-      decision === "approved"
-        ? `Visita aprobada para ${visitorName}.`
-        : `Acceso denegado para ${visitorName}.`;
+      decision === "approved" ? `Visita aprobada para ${visitorName}.` : `Acceso denegado para ${visitorName}.`;
     const actionMessage = result.remote_action
-      ? ` Acción remota ${result.remote_action.command} enviada al sitio.`
+      ? ` Accion remota ${result.remote_action.command} enviada al sitio.`
       : "";
 
     setOperatorStatus(`${baseMessage}${actionMessage}`, "success");
     await loadMasterView();
   } catch (error) {
-    setOperatorStatus(`No se pudo registrar la decisión: ${error.message}`, "error");
+    setOperatorStatus(`No se pudo registrar la decision: ${error.message}`, "error");
   } finally {
     masterState.requestInFlight = false;
     setActionButtonsDisabled(false);
@@ -405,16 +445,26 @@ function bindStaticActions() {
       payload: {
         motivo: "Encendido manual desde la vista maestra",
       },
-      loadingMessage: "Encolando activación remota de la luz del lobby...",
+      loadingMessage: "Encolando activacion remota de la luz del lobby...",
     });
   });
 
   document.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-visitor-decision]");
-    if (!button) {
+    const visitorButton = event.target.closest("[data-visitor-decision]");
+    if (visitorButton) {
+      handleVisitorDecision(visitorButton);
       return;
     }
-    handleVisitorDecision(button);
+
+    const cameraButton = event.target.closest("[data-camera-open]");
+    if (!cameraButton) {
+      return;
+    }
+
+    const camera = masterState.camerasById.get(cameraButton.dataset.cameraOpen);
+    if (camera) {
+      window.CameraExperience.openCamera(camera, cameraButton.dataset.cameraMode || "webrtc");
+    }
   });
 }
 

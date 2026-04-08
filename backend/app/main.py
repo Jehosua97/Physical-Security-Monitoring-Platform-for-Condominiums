@@ -5,6 +5,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile, WebSocket
 from fastapi.responses import HTMLResponse, Response
@@ -26,6 +27,27 @@ SITE_OFFLINE_SECONDS = int(os.getenv("SITE_OFFLINE_SECONDS", "40"))
 CAMERA_OFFLINE_SECONDS = int(os.getenv("CAMERA_OFFLINE_SECONDS", "30"))
 MONITORING_INTERVAL_SECONDS = int(os.getenv("MONITORING_INTERVAL_SECONDS", "8"))
 THINGSBOARD_SYNC_INTERVAL_SECONDS = int(os.getenv("THINGSBOARD_SYNC_INTERVAL_SECONDS", "20"))
+
+MEDIA_ENDPOINTS = {
+    "condo-01": {
+        "rtsp_base": os.getenv("MEDIAMTX_CONDO_01_RTSP_BASE", "rtsp://mediamtx-condo-01:8554"),
+        "webrtc_base": os.getenv("MEDIAMTX_CONDO_01_WEBRTC_BASE", "http://localhost:8889"),
+        "hls_base": os.getenv("MEDIAMTX_CONDO_01_HLS_BASE", "http://localhost:8888"),
+        "playback_base": os.getenv("MEDIAMTX_CONDO_01_PLAYBACK_BASE", "http://localhost:9996"),
+    },
+    "condo-02": {
+        "rtsp_base": os.getenv("MEDIAMTX_CONDO_02_RTSP_BASE", "rtsp://mediamtx-condo-02:8554"),
+        "webrtc_base": os.getenv("MEDIAMTX_CONDO_02_WEBRTC_BASE", "http://localhost:8899"),
+        "hls_base": os.getenv("MEDIAMTX_CONDO_02_HLS_BASE", "http://localhost:8898"),
+        "playback_base": os.getenv("MEDIAMTX_CONDO_02_PLAYBACK_BASE", "http://localhost:9997"),
+    },
+    "condo-03": {
+        "rtsp_base": os.getenv("MEDIAMTX_CONDO_03_RTSP_BASE", "rtsp://mediamtx-condo-03:8554"),
+        "webrtc_base": os.getenv("MEDIAMTX_CONDO_03_WEBRTC_BASE", "http://localhost:8909"),
+        "hls_base": os.getenv("MEDIAMTX_CONDO_03_HLS_BASE", "http://localhost:8908"),
+        "playback_base": os.getenv("MEDIAMTX_CONDO_03_PLAYBACK_BASE", "http://localhost:9998"),
+    },
+}
 
 app = FastAPI(
     title="Plataforma de Monitoreo de Seguridad Fisica",
@@ -233,6 +255,46 @@ def close_alerts(db: Session, *, code: str, site_id: str, source_id: str) -> Non
         alert.closed_at = now
 
 
+def build_camera_media_urls(site_id: str, camera_id: str, fallback_stream_url: str | None = None) -> dict:
+    endpoints = MEDIA_ENDPOINTS.get(site_id)
+    path = f"{site_id}/{camera_id}"
+    encoded_path = quote(path, safe="")
+
+    if endpoints is None:
+        return {
+            "path": path,
+            "mode": "legacy-stream-placeholder",
+            "webrtc_url": None,
+            "hls_embed_url": None,
+            "hls_playlist_url": None,
+            "playback_list_url": None,
+            "playback_download_base_url": None,
+            "ingest_rtsp_url": fallback_stream_url,
+            "notes": "No hay una configuracion MediaMTX registrada para este sitio.",
+        }
+
+    return {
+        "path": path,
+        "mode": "edge-mediamtx-demo",
+        "webrtc_url": (
+            f"{endpoints['webrtc_base']}/{path}"
+            "?controls=false&muted=true&autoplay=true&playsInline=true&disablepictureinpicture=true"
+        ),
+        "hls_embed_url": (
+            f"{endpoints['hls_base']}/{path}"
+            "?controls=true&muted=true&autoplay=true&playsInline=true"
+        ),
+        "hls_playlist_url": f"{endpoints['hls_base']}/{path}/index.m3u8",
+        "playback_list_url": f"{endpoints['playback_base']}/list?path={encoded_path}",
+        "playback_download_base_url": f"{endpoints['playback_base']}/get?path={encoded_path}",
+        "ingest_rtsp_url": fallback_stream_url or f"{endpoints['rtsp_base']}/{path}",
+        "notes": (
+            "WebRTC sirve la vista en vivo de baja latencia, LL-HLS sirve como fallback y "
+            "la reproduccion historica sale del servidor de playback de MediaMTX."
+        ),
+    }
+
+
 def camera_summary(camera: Camera) -> dict:
     return {
         "camera_id": camera.id,
@@ -241,6 +303,7 @@ def camera_summary(camera: Camera) -> dict:
         "status": camera.status,
         "snapshot_url": camera.snapshot_url,
         "stream_url": camera.stream_url,
+        "media": build_camera_media_urls(camera.site_id, camera.id, camera.stream_url),
         "last_seen": camera.last_seen.isoformat(),
     }
 
@@ -425,6 +488,7 @@ def build_camera_snapshot(db: Session, camera_id: str) -> dict | None:
         "status": camera.status,
         "snapshot_url": camera.snapshot_url,
         "stream_url": camera.stream_url,
+        "media": build_camera_media_urls(camera.site_id, camera.id, camera.stream_url),
         "last_seen": camera.last_seen.isoformat(),
         "last_seen_epoch": int(camera.last_seen.timestamp() * 1000),
     }
@@ -478,11 +542,12 @@ def build_site_master_data(db: Session, site_id: str) -> dict | None:
             "acciones_pendientes": sum(1 for action in actions if action.status in ["pending", "in_progress"]),
         },
         "live_mode": {
-            "type": "snapshot-simulated",
-            "title": "Vista pseudo-en-vivo de etapa 1",
+            "type": "edge-live-streaming",
+            "title": "Mosaico en vivo desde el edge",
             "description": (
-                "Este prototipo refresca snapshots generados casi en tiempo real. "
-                "El campo RTSP es un placeholder para una fase futura y todavia no se reproduce dentro del navegador."
+                "Cada camara expone una ruta WebRTC para baja latencia, una vista LL-HLS para reproduccion "
+                "y un playback historico desde MediaMTX. En esta etapa el video sigue siendo simulado, "
+                "pero la ruta de integracion con camaras RTSP reales ya queda marcada en la capa edge."
             ),
         },
         "cameras": [camera_summary(camera) for camera in cameras],

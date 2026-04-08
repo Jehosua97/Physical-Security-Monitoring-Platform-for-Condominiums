@@ -1,10 +1,11 @@
 const state = {
   socket: null,
+  camerasById: new Map(),
 };
 
 const STATUS_LABELS = {
-  online: "En línea",
-  offline: "Fuera de línea",
+  online: "En linea",
+  offline: "Fuera de linea",
   approved: "Aprobado",
   pending: "Pendiente",
   denied: "Denegado",
@@ -14,35 +15,38 @@ const STATUS_LABELS = {
   low: "Baja",
   medium: "Media",
   high: "Alta",
-  critical: "Crítica",
+  critical: "Critica",
 };
 
 function formatTime(value) {
   if (!value) {
-    return "Sin datos aún";
+    return "Sin datos aun";
   }
 
-  const date = new Date(value);
   return new Intl.DateTimeFormat("es-CO", {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     hour12: false,
-  }).format(date);
+  }).format(new Date(value));
 }
 
 function translateStatus(value) {
   return STATUS_LABELS[value] || value || "Sin estado";
 }
 
+function statusClass(status) {
+  return `status-pill status-${(status || "unknown").toLowerCase()}`;
+}
+
 function renderKpis(kpis) {
   const items = [
-    ["Sitios en línea", `${kpis.sites_online}/${kpis.sites_total}`],
-    ["Cámaras en línea", `${kpis.cameras_online}`],
+    ["Sitios en linea", `${kpis.sites_online}/${kpis.sites_total}`],
+    ["Camaras en linea", `${kpis.cameras_online}`],
     ["Eventos de visitantes", `${kpis.visitors_total}`],
     ["Alertas abiertas", `${kpis.alerts_open}`],
-    ["Operación remota", "3 condominios simulados"],
+    ["Operacion remota", "WebRTC + LL-HLS + playback"],
   ];
 
   document.getElementById("kpi-grid").innerHTML = items
@@ -55,10 +59,6 @@ function renderKpis(kpis) {
       `
     )
     .join("");
-}
-
-function statusClass(status) {
-  return `status-pill status-${(status || "unknown").toLowerCase()}`;
 }
 
 function renderSites(sites) {
@@ -88,10 +88,10 @@ function renderSites(sites) {
             </div>
             <p class="site-address">${site.address}</p>
             <div class="site-metrics">
-              <span class="metric-chip">${site.active_cameras} cámaras activas</span>
+              <span class="metric-chip">${site.active_cameras} camaras activas</span>
               <span class="metric-chip">${site.recent_visitors} visitantes recientes</span>
               <span class="metric-chip">${site.recent_alerts} alertas abiertas</span>
-              <span class="metric-chip">Última señal ${formatTime(site.last_seen)}</span>
+              <span class="metric-chip">Ultima senal ${formatTime(site.last_seen)}</span>
             </div>
             <div class="site-actions">
               <a class="site-link" href="/sites/${site.site_id}/master">Abrir vista maestra</a>
@@ -107,10 +107,10 @@ function renderFeed(containerId, items, kind) {
   const container = document.getElementById(containerId);
   if (!items.length) {
     const messages = {
-      alerts: "Sin alertas todavía. Los simuladores siguen calentando.",
-      visitors: "Sin visitantes todavía. Los simuladores siguen calentando.",
+      alerts: "Sin alertas todavia. Los simuladores siguen calentando.",
+      visitors: "Sin visitantes todavia. Los simuladores siguen calentando.",
     };
-    container.innerHTML = `<div class="empty-state">${messages[kind] || "Sin datos aún."}</div>`;
+    container.innerHTML = `<div class="empty-state">${messages[kind] || "Sin datos aun."}</div>`;
     return;
   }
 
@@ -149,33 +149,74 @@ function renderFeed(containerId, items, kind) {
     .join("");
 }
 
+function cameraActionButtons(camera) {
+  return `
+    <div class="camera-card-actions">
+      <button class="action-button" type="button" data-camera-open="${camera.camera_id}" data-camera-mode="webrtc">
+        Ver en vivo
+      </button>
+      <button
+        class="action-button action-button-secondary"
+        type="button"
+        data-camera-open="${camera.camera_id}"
+        data-camera-mode="playback"
+      >
+        Reproducir
+      </button>
+      <a class="site-link" href="/sites/${camera.site_id}/master">Ir al condo</a>
+    </div>
+  `;
+}
+
+function cameraPreviewOverlay(camera, label = "Abrir en grande") {
+  return `
+    <button
+      class="camera-preview-hitbox"
+      type="button"
+      data-camera-open="${camera.camera_id}"
+      data-camera-mode="webrtc"
+      aria-label="Abrir ${camera.name} en vista ampliada"
+      title="Abrir ${camera.name} en vista ampliada"
+    >
+      <span class="camera-preview-chip">En vivo</span>
+      <span class="camera-preview-chip camera-preview-chip-strong">${label}</span>
+    </button>
+  `;
+}
+
 function renderCameras(cameras) {
   const container = document.getElementById("camera-grid");
+  state.camerasById = new Map(cameras.map((camera) => [camera.camera_id, camera]));
+
   if (!cameras.length) {
     container.innerHTML =
-      '<div class="empty-state">Las cámaras simuladas todavía están enviando sus primeros snapshots.</div>';
+      '<div class="empty-state">Las camaras simuladas todavia estan enviando sus primeros streams.</div>';
     return;
   }
 
   container.innerHTML = cameras
     .map(
       (camera) => `
-        <article class="camera-card">
-          ${
-            camera.snapshot_url
-              ? `<img src="${camera.snapshot_url}" alt="Snapshot de ${camera.name}" />`
-              : '<div class="site-preview"></div>'
-          }
+        <article class="camera-card camera-card-live">
+          <div class="camera-card-media">
+            ${window.CameraExperience.buildCameraViewport(camera, { compact: true })}
+            ${cameraPreviewOverlay(camera)}
+          </div>
           <div class="camera-body">
             <div class="site-topline">
               <div>
                 <h3>${camera.name}</h3>
-                <p class="site-address">${camera.site_id}</p>
+                <p class="site-address">${camera.site_id} · ${camera.camera_id}</p>
               </div>
               <span class="${statusClass(camera.status)}">${translateStatus(camera.status)}</span>
             </div>
-            <p class="site-address">${camera.stream_url || "Placeholder de streaming para fase futura"}</p>
-            <p class="camera-note">La etapa 1 usa snapshots actualizados, no video reproducible en navegador todavía.</p>
+            <div class="feed-badge-row">
+              <span class="metric-chip">WebRTC vivo</span>
+              <span class="metric-chip">LL-HLS fallback</span>
+              <span class="metric-chip">Ultima senal ${formatTime(camera.last_seen)}</span>
+            </div>
+            <p class="camera-note">${camera.media?.notes || "Camara lista para abrir en vivo o reproducir."}</p>
+            ${cameraActionButtons(camera)}
           </div>
         </article>
       `
@@ -185,6 +226,10 @@ function renderCameras(cameras) {
 
 async function loadOverview() {
   const response = await fetch("/dashboard/overview", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`No fue posible cargar el dashboard: ${response.status}`);
+  }
+
   const data = await response.json();
   renderKpis(data.kpis);
   renderSites(data.sites);
@@ -192,6 +237,26 @@ async function loadOverview() {
   renderFeed("visitors-list", data.latest_visitors, "visitors");
   renderCameras(data.latest_cameras);
   document.getElementById("generated-at").textContent = `Vista actualizada ${formatTime(data.generated_at)}`;
+}
+
+function openCameraFromButton(button) {
+  const cameraId = button.dataset.cameraOpen;
+  const preferredMode = button.dataset.cameraMode || "webrtc";
+  const camera = state.camerasById.get(cameraId);
+  if (camera) {
+    window.CameraExperience.openCamera(camera, preferredMode);
+  }
+}
+
+function bindActions() {
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-camera-open]");
+    if (!button) {
+      return;
+    }
+
+    openCameraFromButton(button);
+  });
 }
 
 function connectSocket() {
@@ -213,6 +278,7 @@ function connectSocket() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  bindActions();
   await loadOverview();
   connectSocket();
   window.setInterval(() => {

@@ -1,0 +1,113 @@
+version: 1
+
+site:
+  id: condo-01
+  name: Torre Mirador Norte
+  address: Av. Central 101, Distrito Norte
+  timezone: America/Bogota
+  edge_id: condo-01-edge
+
+network:
+  lan_cidr: 192.168.10.0/24
+  gateway: 192.168.10.1
+  dns:
+    - 192.168.10.2
+    - 1.1.1.1
+
+# Este archivo debe vivir en el edge real del condominio.
+# No guardes credenciales reales en git. En produccion, mueve passwords y tokens
+# a secretos o variables de entorno del host edge.
+
+cameras:
+  - id: condo-01-cam-lobby-01
+    enabled: false
+    name: Camara lobby torre A
+    vendor: hikvision
+    model: DS-2CD2143G2-I
+    protocol: onvif
+    ip: 192.168.10.21
+    rtsp_url: rtsp://admin:CAMBIAR_PASSWORD@192.168.10.21:554/Streaming/Channels/101
+    snapshot_url: http://192.168.10.21/ISAPI/Streaming/channels/101/picture
+    username: admin
+    password_env: CAMERA_LOBBY_01_PASSWORD
+    zone: lobby
+    notes: |
+      Futuro punto de integracion:
+      - un camera-collector deberia leer este bloque
+      - reportar heartbeat al backend
+      - tomar snapshot_url cuando sea posible
+      - publicar stream_url reproducible en navegador cuando exista HLS o WebRTC
+
+  - id: condo-01-cam-gate-01
+    enabled: false
+    name: Camara acceso principal
+    vendor: dahua
+    model: IPC-HDW2431T
+    protocol: rtsp
+    ip: 192.168.10.22
+    rtsp_url: rtsp://admin:CAMBIAR_PASSWORD@192.168.10.22:554/cam/realmonitor?channel=1&subtype=0
+    snapshot_url: http://192.168.10.22/cgi-bin/snapshot.cgi
+    username: admin
+    password_env: CAMERA_GATE_01_PASSWORD
+    zone: main_gate
+    notes: |
+      Si esta camara protege la puerta principal, su `id` puede relacionarse con eventos de apertura.
+
+doors:
+  - id: condo-01-main-gate
+    enabled: false
+    name: Porton principal
+    controller_type: relay_http
+    ip: 192.168.10.50
+    method: POST
+    control_url: http://192.168.10.50/api/relay/1/pulse
+    pulse_seconds: 5
+    auth_type: bearer
+    token_env: MAIN_GATE_TOKEN
+    confirm_sensor_id: condo-01-main-gate-sensor
+    notes: |
+      Futuro punto de integracion en edge-agent/app/main.py:
+      - mapear command=open_door a este `id`
+      - hacer POST real al control_url
+      - esperar confirmacion del sensor si existe
+      - reportar completed o failed al backend
+
+lights:
+  - id: condo-01-lobby-light
+    enabled: false
+    name: Luz lobby
+    controller_type: relay_http
+    ip: 192.168.10.51
+    method: POST
+    control_url: http://192.168.10.51/api/relay/2/on
+    token_env: LOBBY_LIGHT_TOKEN
+    notes: |
+      Futuro punto de integracion:
+      - mapear command=toggle_lobby_light a este `id`
+      - si el hardware soporta estados, agregar endpoint de consulta
+
+sensors:
+  - id: condo-01-main-gate-sensor
+    enabled: false
+    name: Sensor estado porton principal
+    sensor_type: magnetic_contact
+    protocol: modbus_tcp
+    ip: 192.168.10.60
+    port: 502
+    unit_id: 1
+    register: 1001
+    expected_open_value: 1
+    expected_closed_value: 0
+    notes: |
+      Sirve para validar si una orden de apertura realmente ocurrio.
+
+nvr:
+  id: condo-01-nvr-01
+  enabled: false
+  name: NVR principal
+  vendor: hikvision
+  ip: 192.168.10.70
+  username: admin
+  password_env: NVR_PASSWORD
+  notes: |
+    Opcional. Se puede usar para discovery, snapshots o estado agregado de camaras.

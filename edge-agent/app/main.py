@@ -11,6 +11,12 @@ SITE_NAME = os.getenv("SITE_NAME", SITE_ID.replace("-", " ").title())
 SITE_ADDRESS = os.getenv("SITE_ADDRESS", "Condominio demo")
 HEARTBEAT_INTERVAL = int(os.getenv("HEARTBEAT_INTERVAL_SECONDS", "8"))
 
+# Futuro edge real:
+# - montar un inventario local como /app/config/devices.condo-01.yaml
+# - leer desde DEVICE_CONFIG_PATH antes de registrar dispositivos fisicos
+# - mapear target_id y command contra ese inventario local
+DEVICE_CONFIG_PATH = os.getenv("DEVICE_CONFIG_PATH", "/app/config/devices.condo-01.yaml")
+
 session = requests.Session()
 random.seed(SITE_ID)
 
@@ -44,6 +50,9 @@ def get_json(path: str) -> list[dict]:
 
 
 def register_site() -> None:
+    # Punto futuro de integracion:
+    # despues de registrar el sitio, aqui se puede cargar DEVICE_CONFIG_PATH
+    # y registrar camaras, puertas y sensores fisicos descubiertos en la LAN local.
     post_json(
         "/sites/register",
         {"id": SITE_ID, "name": SITE_NAME, "address": SITE_ADDRESS},
@@ -117,6 +126,12 @@ def execute_remote_action(action: dict) -> None:
     update_action_status(action_id, "in_progress", "Comando recibido por el edge-agent")
     time.sleep(2)
 
+    # Punto futuro de integracion con hardware real:
+    # 1. leer DEVICE_CONFIG_PATH
+    # 2. buscar el dispositivo por target_id
+    # 3. despachar a un driver real segun controller_type o protocol
+    # 4. confirmar resultado con sensor o respuesta del controlador
+    # 5. reportar completed o failed al backend
     if command == "open_door":
         update_action_status(action_id, "completed", "Puerta principal liberada durante 5 segundos")
     elif command == "toggle_lobby_light":
@@ -126,6 +141,9 @@ def execute_remote_action(action: dict) -> None:
 
 
 def poll_remote_actions() -> None:
+    # Punto futuro de integracion:
+    # aqui puedes filtrar acciones que no existan en DEVICE_CONFIG_PATH
+    # para no ejecutar comandos sobre dispositivos no inventariados localmente.
     actions = get_json(f"/sites/{SITE_ID}/actions/pending")
     for action in actions:
         execute_remote_action(action)

@@ -59,6 +59,18 @@ services:
       THINGSBOARD_TENANT_PASSWORD: ${THINGSBOARD_TENANT_PASSWORD}
       THINGSBOARD_DASHBOARD_TITLE: ${THINGSBOARD_DASHBOARD_TITLE}
       THINGSBOARD_SYNC_INTERVAL_SECONDS: ${THINGSBOARD_SYNC_INTERVAL_SECONDS}
+      MEDIAMTX_CONDO_01_RTSP_BASE: rtsp://mediamtx-condo-01:8554
+      MEDIAMTX_CONDO_01_WEBRTC_BASE: http://localhost:8889
+      MEDIAMTX_CONDO_01_HLS_BASE: http://localhost:8888
+      MEDIAMTX_CONDO_01_PLAYBACK_BASE: http://localhost:9996
+      MEDIAMTX_CONDO_02_RTSP_BASE: rtsp://mediamtx-condo-02:8554
+      MEDIAMTX_CONDO_02_WEBRTC_BASE: http://localhost:8899
+      MEDIAMTX_CONDO_02_HLS_BASE: http://localhost:8898
+      MEDIAMTX_CONDO_02_PLAYBACK_BASE: http://localhost:9997
+      MEDIAMTX_CONDO_03_RTSP_BASE: rtsp://mediamtx-condo-03:8554
+      MEDIAMTX_CONDO_03_WEBRTC_BASE: http://localhost:8909
+      MEDIAMTX_CONDO_03_HLS_BASE: http://localhost:8908
+      MEDIAMTX_CONDO_03_PLAYBACK_BASE: http://localhost:9998
     depends_on:
       - postgres
       - minio
@@ -75,6 +87,11 @@ services:
       SITE_NAME: Torre Mirador Norte
       SITE_ADDRESS: Av. Central 101, Distrito Norte
       HEARTBEAT_INTERVAL_SECONDS: 8
+      # Futuro edge fisico:
+      # DEVICE_CONFIG_PATH: /app/config/devices.condo-01.yaml
+    # Futuro edge fisico:
+    # volumes:
+    #   - ./edge-agent/config:/app/config:ro
     depends_on:
       - backend-api
 
@@ -102,6 +119,85 @@ services:
     depends_on:
       - backend-api
 
+  mediamtx-condo-01:
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "8554:8554"
+      - "8888:8888"
+      - "8889:8889"
+      - "8189:8189/udp"
+      - "9996:9996"
+    volumes:
+      - ./infra/mediamtx/condo-01.yml:/mediamtx.yml:ro
+      - mediamtx_recordings_condo_01:/recordings
+
+  mediamtx-condo-02:
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "8555:8554"
+      - "8898:8888"
+      - "8899:8889"
+      - "8190:8189/udp"
+      - "9997:9996"
+    volumes:
+      - ./infra/mediamtx/condo-02.yml:/mediamtx.yml:ro
+      - mediamtx_recordings_condo_02:/recordings
+
+  mediamtx-condo-03:
+    image: bluenviron/mediamtx:latest
+    ports:
+      - "8556:8554"
+      - "8908:8888"
+      - "8909:8889"
+      - "8191:8189/udp"
+      - "9998:9996"
+    volumes:
+      - ./infra/mediamtx/condo-03.yml:/mediamtx.yml:ro
+      - mediamtx_recordings_condo_03:/recordings
+
+  # Demo de video en el edge:
+  # este publisher simula la senal RTSP local que luego MediaMTX remapea a WebRTC, LL-HLS y playback.
+  # En un condominio fisico se elimina este servicio y se configura la camara real directamente
+  # en infra/mediamtx/condo-01.yml o en un collector ONVIF/RTSP dentro de la LAN del sitio.
+  stream-publisher-condo-01:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    entrypoint: ["/bin/sh", "/scripts/start.sh"]
+    environment:
+      SITE_ID: condo-01
+      CAMERA_IDS: condo-01-cam-lobby,condo-01-cam-gate
+      MEDIAMTX_RTSP_BASE: rtsp://mediamtx-condo-01:8554
+    volumes:
+      - ./stream-publisher/start.sh:/scripts/start.sh:ro
+    depends_on:
+      - mediamtx-condo-01
+
+  stream-publisher-condo-02:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    entrypoint: ["/bin/sh", "/scripts/start.sh"]
+    environment:
+      SITE_ID: condo-02
+      CAMERA_IDS: condo-02-cam-lobby,condo-02-cam-pool
+      MEDIAMTX_RTSP_BASE: rtsp://mediamtx-condo-02:8554
+    volumes:
+      - ./stream-publisher/start.sh:/scripts/start.sh:ro
+    depends_on:
+      - mediamtx-condo-02
+
+  stream-publisher-condo-03:
+    image: jrottenberg/ffmpeg:6.0-alpine
+    entrypoint: ["/bin/sh", "/scripts/start.sh"]
+    environment:
+      SITE_ID: condo-03
+      CAMERA_IDS: condo-03-cam-garage,condo-03-cam-perimeter
+      MEDIAMTX_RTSP_BASE: rtsp://mediamtx-condo-03:8554
+    volumes:
+      - ./stream-publisher/start.sh:/scripts/start.sh:ro
+    depends_on:
+      - mediamtx-condo-03
+
+  # Futuro condo-01 fisico:
+  # sustituir este simulador por un collector real que lea ./edge-agent/config/devices.condo-01.yaml
+  # y consulte las camaras fisicas por RTSP, ONVIF o HTTP snapshot.
   camera-sim-condo-01:
     build:
       context: ./camera-sim
@@ -110,10 +206,11 @@ services:
       SITE_ID: condo-01
       CAMERA_IDS: condo-01-cam-lobby,condo-01-cam-gate
       CAMERA_NAMES: Camara lobby,Camara acceso principal
-      STREAM_BASE_URL: rtsp://demo-streams.local/condo-01
+      STREAM_BASE_URL: rtsp://mediamtx-condo-01:8554/condo-01
       UPDATE_INTERVAL_SECONDS: 9
     depends_on:
       - backend-api
+      - mediamtx-condo-01
 
   camera-sim-condo-02:
     build:
@@ -123,10 +220,11 @@ services:
       SITE_ID: condo-02
       CAMERA_IDS: condo-02-cam-lobby,condo-02-cam-pool
       CAMERA_NAMES: Camara lobby,Camara acceso piscina
-      STREAM_BASE_URL: rtsp://demo-streams.local/condo-02
+      STREAM_BASE_URL: rtsp://mediamtx-condo-02:8554/condo-02
       UPDATE_INTERVAL_SECONDS: 9
     depends_on:
       - backend-api
+      - mediamtx-condo-02
 
   camera-sim-condo-03:
     build:
@@ -136,10 +234,11 @@ services:
       SITE_ID: condo-03
       CAMERA_IDS: condo-03-cam-garage,condo-03-cam-perimeter
       CAMERA_NAMES: Camara garaje,Camara perimetral
-      STREAM_BASE_URL: rtsp://demo-streams.local/condo-03
+      STREAM_BASE_URL: rtsp://mediamtx-condo-03:8554/condo-03
       UPDATE_INTERVAL_SECONDS: 9
     depends_on:
       - backend-api
+      - mediamtx-condo-03
 
   visitor-sim-condo-01:
     build:
@@ -176,3 +275,6 @@ volumes:
   minio_data:
   thingsboard_data:
   thingsboard_logs:
+  mediamtx_recordings_condo_01:
+  mediamtx_recordings_condo_02:
+  mediamtx_recordings_condo_03:

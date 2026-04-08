@@ -14,23 +14,26 @@
       <header class="hero">
         <div>
           <p class="eyebrow">Prototipo etapa 1</p>
-          <h1>Monitoreo centralizado de seguridad física para condominios</h1>
+          <h1>Monitoreo centralizado de seguridad fisica para condominios</h1>
           <p class="hero-copy">
-            Este panel en <code>localhost:8000</code> es la consola operativa del demo. Desde aquí un equipo central
-            supervisa condominios, visitantes, cámaras, alertas y, en la vista maestra de cada sitio, dispara acciones
-            remotas simuladas.
+            Este panel en <code>localhost:8000</code> es la consola operativa del demo. Desde aqui un equipo central
+            supervisa condominios, visitantes, camaras, alertas y video en vivo. Haz clic sobre cualquier camara del
+            mosaico para verla ampliada, llevarla a pantalla completa o abrir su reproduccion historica.
           </p>
         </div>
         <div class="hero-links">
-          <a href="/docs" target="_blank" rel="noreferrer">Documentación API</a>
-          <a href="http://localhost:9090" target="_blank" rel="noreferrer">ThingsBoard / telemetría</a>
+          <button class="action-button theme-toggle" type="button" data-theme-toggle>
+            Cambiar a oscuro
+          </button>
+          <a href="/docs" target="_blank" rel="noreferrer">Documentacion API</a>
+          <a href="http://localhost:9090" target="_blank" rel="noreferrer">ThingsBoard / telemetria</a>
           <a href="http://localhost:9001" target="_blank" rel="noreferrer">MinIO / evidencias</a>
           <div class="hero-status-card">
             <p class="section-label">Arquitectura</p>
             <p>
-              <strong>8000</strong>: operación diaria y aprobaciones.
+              <strong>8000</strong>: operacion diaria, live view y playback.
               <br />
-              <strong>9090</strong>: ThingsBoard como capa de telemetría y tablero operativo.
+              <strong>9090</strong>: ThingsBoard como capa de telemetria y tablero operativo.
             </p>
           </div>
         </div>
@@ -41,10 +44,10 @@
       <section class="panel site-panel">
         <div class="section-head">
           <div>
-            <p class="section-label">Operación multisede</p>
+            <p class="section-label">Operacion multisede</p>
             <h2>Estado general de los condominios</h2>
           </div>
-          <p class="section-meta" id="generated-at">Esperando la primera ráfaga de telemetría...</p>
+          <p class="section-meta" id="generated-at">Esperando la primera rafaga de telemetria...</p>
         </div>
         <div class="site-grid" id="site-grid"></div>
       </section>
@@ -74,14 +77,17 @@
       <section class="panel">
         <div class="section-head">
           <div>
-            <p class="section-label">Visibilidad de cámaras</p>
-            <h2>Últimos snapshots de todos los sitios</h2>
+            <p class="section-label">Centro de monitoreo</p>
+            <h2>Mosaico en vivo de todos los sitios</h2>
           </div>
+          <p class="section-meta">WebRTC para vivo, LL-HLS para reproducir, playback historico por camara.</p>
         </div>
         <div class="camera-grid" id="camera-grid"></div>
       </section>
     </div>
 
+    <script src="/static/theme-toggle.js" defer></script>
+    <script src="/static/camera-modal.js" defer></script>
     <script src="/static/app.js" defer></script>
   </body>
 </html>
