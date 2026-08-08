@@ -8,3 +8,7 @@ __pycache__/
 .venv/
 *.log
 
+# Local environment overrides (copy .env.example -> .env)
+.env
+.env.*
+!.env.example
